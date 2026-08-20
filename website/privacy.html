@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy - ResTail Extension</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="nav-container">
+      <a href="about.html" class="logo">
+        <img src="favicon.svg" alt="ResTail Logo" class="logo-img">
+        ResTail
+      </a>
+      <ul class="nav-links">
+        <li><a href="about.html">About</a></li>
+        <li><a href="privacy.html" class="active">Privacy</a></li>
+        <li><a href="term.html">Terms</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <div class="page-header">
+    <div class="eyebrow">02 / Policy</div>
+    <h1>Privacy Policy</h1>
+    <div class="lead-text">Last Updated: August 20, 2026. ResTail is built with a local-first philosophy. We believe your professional history is sensitive and belongs solely in your control.</div>
+  </div>
+
+  <main>
+    <section class="content-section">
+      <h2>Information We Do Not Collect</h2>
+      <p>We run no central analytics dashboards, track no user sessions, and do not maintain database collections. Your original resume text, job descriptions, and custom instructions are never uploaded to any analytics networks.</p>
+    </section>
+
+    <section class="content-section">
+      <h2>Data Handling Pipeline</h2>
+      <ul class="data-list">
+        <li class="data-item">
+          <div class="item-title">Client-Side Persistence</div>
+          <div class="item-desc">Your inputs are saved strictly within your browser's sandboxed environment via <code>chrome.storage.local</code>. This allows you to close the popup without losing configuration data.</div>
+        </li>
+        <li class="data-item">
+          <div class="item-title">Orchestration Isolation</div>
+          <div class="item-desc">When request automation triggers, prompt injections run locally inside a temporary window. Your data is sent directly to your logged-in AI provider (e.g. Gemini), governed by your existing workspace agreements.</div>
+        </li>
+        <li class="data-item">
+          <div class="item-title">In-Memory Compilation</div>
+          <div class="item-desc">LaTeX compilation calls run via a secure compilation service at <code>https://latex.ytotech.com</code>. The service compiles the PDF in memory, returns the binary stream, and instantly purges all compilation caches.</div>
+        </li>
+      </ul>
+    </section>
+
+    <section class="content-section">
+      <h2>Browser Permissions Required</h2>
+      <p><strong>activeTab / scripting:</strong> Required to locate the input forms inside the AI platform tabs and paste user prompts.</p>
+      <p><strong>storage:</strong> Used to save inputs local to your machine so you do not have to copy and paste your resume every time you open the extension.</p>
+      <p><strong>downloads:</strong> Needed to download the final compiled PDF from the preview tab directly to your system.</p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-container">
+      <div class="copyright">&copy; 2026 ResTail. All rights reserved.</div>
+      <div class="footer-links">
+        <a href="about.html">About</a>
+        <a href="privacy.html">Privacy Policy</a>
+        <a href="term.html">Terms of Use</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

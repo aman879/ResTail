@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "ResTail",
+  "version": "1.0.0",
+  "description": "Tailor your resume for specific job descriptions.",
+  "action": {
+    "default_popup": "index.html",
+    "default_title": "Open ResTail",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "background": {
+    "service_worker": "assets/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://chatgpt.com/*"],
+      "js": ["assets/content_chatgpt.js"]
+    },
+    {
+      "matches": ["*://gemini.google.com/*"],
+      "js": ["assets/content_gemini.js"]
+    },
+    {
+      "matches": ["*://claude.ai/*"],
+      "js": ["assets/content_claude.js"]
+    }
+  ],
+  "permissions": [
+    "storage",
+    "activeTab",
+    "tabs",
+    "scripting",
+    "downloads",
+    "notifications"
+  ],
+  "host_permissions": [
+    "*://chatgpt.com/*",
+    "*://gemini.google.com/*",
+    "*://claude.ai/*"
+  ]
+}

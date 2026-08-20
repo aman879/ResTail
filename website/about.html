@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About ResTail - Free AI Resume Tailoring</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="nav-container">
+      <a href="about.html" class="logo">
+        <img src="favicon.svg" alt="ResTail Logo" class="logo-img">
+        ResTail
+      </a>
+      <ul class="nav-links">
+        <li><a href="about.html" class="active">About</a></li>
+        <li><a href="privacy.html">Privacy</a></li>
+        <li><a href="term.html">Terms</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <div class="page-header">
+    <div class="eyebrow">01 / Introduction</div>
+    <h1>About ResTail</h1>
+    <div class="lead-text">ResTail is a free browser extension engineered for candidates who maintain their resumes in LaTeX. We automate contextual tailoring without distorting your code formatting or chronology.</div>
+  </div>
+
+  <main>
+    <section class="content-section">
+      <h2>The Core Philosophy</h2>
+      <p>Most AI tailoring services force you to purchase expensive separate subscriptions or API keys just to process your resume, while often breaking your LaTeX formatting. ResTail is built on a different philosophy: <strong>use the AI accounts you already have, and keep your code formatting completely intact.</strong></p>
+      <p>ResTail is 100% free. It runs locally in your browser, leveraging your existing logged-in sessions of AI models (like Gemini) to perform the tailoring. There are no monthly fees, no credit cards, and no separate API bills. You get layout-preserving tailoring using the AI subscriptions you already pay for or use for free.</p>
+    </section>
+
+    <section class="content-section">
+      <h2>Extension Capabilities</h2>
+      <div class="features-grid">
+        <div class="feature-cell">
+          <div class="feature-num">01.1</div>
+          <div class="feature-title">Layout Preservation</div>
+          <div class="feature-desc">Modifies only the text content inside entries. Your document class, styling, margins, macros, and spacings remain 100% identical.</div>
+        </div>
+        <div class="feature-cell">
+          <div class="feature-num">01.2</div>
+          <div class="feature-title">Chronological Lock</div>
+          <div class="feature-desc">Restricts changes strictly to bullet points and skills list. It never swaps company ordering or alters employment dates/metadata.</div>
+        </div>
+        <div class="feature-cell">
+          <div class="feature-num">01.3</div>
+          <div class="feature-title">ATS Optimizations</div>
+          <div class="feature-desc">Rephrases and targets essential tools and methodologies naturally, aiming for a 9/10 matching benchmark without keyword stuffing.</div>
+        </div>
+        <div class="feature-cell">
+          <div class="feature-num">01.4</div>
+          <div class="feature-title">Inline PDF Previewer</div>
+          <div class="feature-desc">Compiles the tailored output in memory and opens it in a dedicated extension preview window so you can audit the PDF before downloading.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="content-section">
+      <h2>The Workflow Sequence</h2>
+      <p>1. Open the ResTail extension popup and paste your original LaTeX source code.</p>
+      <p>2. Input the target job description and any specific custom parameters or keywords.</p>
+      <p>3. Click <strong>Tailor Resume</strong>. The extension opens a temporary minimized window, executes browser inputs securely within the local AI chat frame, compiles the result, and displays the final PDF preview.</p>
+    </section>
+
+    <section class="content-section">
+      <h2>Frequently Asked Questions</h2>
+      <ul class="data-list">
+        <li class="data-item">
+          <div class="item-title">How does it work?</div>
+          <div class="item-desc">ResTail acts as a local browser orchestrator. It securely injects your LaTeX resume, target job details, and custom prompts into your active AI session (like Google Gemini). Once the AI finishes typing, ResTail extracts the code, compiles it via an in-memory compiler, and opens a clean PDF preview.</div>
+        </li>
+        <li class="data-item">
+          <div class="item-title">Do I need to buy a subscription?</div>
+          <div class="item-desc">No. ResTail is 100% free and open-source. It leverages your existing logged-in browser sessions of AI providers to process prompt interactions, meaning you never need to buy expensive API keys or pay monthly subscription fees.</div>
+        </li>
+        <li class="data-item">
+          <div class="item-title">Will it guarantee a job?</div>
+          <div class="item-desc">No. ResTail does not guarantee interviews, job offers, or employment outcomes. Hiring is purely based on the employer; we just help you fix and align your resume to pass ATS screens. For more details, please review our <a href="term.html" style="color: var(--accent); text-decoration: underline;">Terms of Use</a>.</div>
+        </li>
+        <li class="data-item">
+          <div class="item-title">Does it store or use cookies to get responses?</div>
+          <div class="item-desc">No. ResTail does not read, store, or transmit your session cookies or credentials. It operates purely locally, interacting directly with the active tab. It only functions because you are already logged in to the AI provider in your browser, running just like manual user inputs.</div>
+        </li>
+        <li class="data-item">
+          <div class="item-title">Will the AI provider ban me for using this?</div>
+          <div class="item-desc">No. ResTail runs entirely on your local machine and simulates natural human browser interactions (such as paste, click, and keystroke events). Because it does not query unofficial APIs or make headless server-side bots requests, the provider processes the session as standard web traffic.</div>
+        </li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-container">
+      <div class="copyright">&copy; 2026 ResTail. All rights reserved.</div>
+      <div class="footer-links">
+        <a href="about.html">About</a>
+        <a href="privacy.html">Privacy Policy</a>
+        <a href="term.html">Terms of Use</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  margin: 0;
+  padding: 0;
+  /* Defaults which get overridden by Tailwind classes on the wrapper, 
+     but setting safe fallback for body */
+  background-color: #fafafa; /* zinc-50 */
+}
+
+.dark body {
+  background-color: #09090b; /* zinc-950 */
+}
+
+/* Base styles for scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #e4e4e7; /* zinc-200 */
+  border-radius: 4px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #27272a; /* zinc-800 */
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #d4d4d8; /* zinc-300 */
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46; /* zinc-700 */
+}
