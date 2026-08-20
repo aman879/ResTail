@@ -188,11 +188,11 @@ export default function App() {
           If it saved you time or helped you land an interview, consider supporting the project ☕
         </div>
         <div className="flex items-center justify-center gap-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-          <a href="privacy.html" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">Privacy</a>
+          <a href="https://aman879.github.io/ResTail-policies/privacy.html" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">Privacy</a>
           <span>.</span>
-          <a href="term.html" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">Terms</a>
+          <a href="https://aman879.github.io/ResTail-policies/term.html" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">Terms</a>
           <span>.</span>
-          <a href="about.html" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">About</a>
+          <a href="https://aman879.github.io/ResTail-policies/about.html" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">About</a>
           <span>.</span>
           <a href="https://ko-fi.com/sch1zo" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors flex items-center gap-0.5 text-rose-500 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300">
             Support ❤️

@@ -142,9 +142,9 @@ export function ResumeInput({ initialLatex = '', onLatexLoaded, onError }: Resum
 
       <span className="text-[10px] text-zinc-500 dark:text-zinc-500 text-center leading-normal mt-1">
         By uploading or pasting your resume, you agree to the{' '}
-        <a href="privacy.html" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-800 dark:hover:text-zinc-300">Privacy Policy</a>
+        <a href="https://aman879.github.io/ResTail-policies/privacy.html" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-800 dark:hover:text-zinc-300">Privacy Policy</a>
         {' '}and{' '}
-        <a href="term.html" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-800 dark:hover:text-zinc-300">Terms of Service</a>.
+        <a href="https://aman879.github.io/ResTail-policies/term.html" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-800 dark:hover:text-zinc-300">Terms of Service</a>.
       </span>
     </div>
   );
