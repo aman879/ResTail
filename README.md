@@ -1,32 +1,54 @@
-# React + TypeScript + Vite
+# ResTail
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Tailor your resume for specific job descriptions using AI directly in your browser. ResTail is an open-source Chrome Extension that automates the process of rewriting your LaTeX resume against job postings using popular AI models.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Seamless AI Integration:** Works directly with Gemini (working), ChatGPT (experimental), and Claude (experimental).
+- **LaTeX Support:** Upload your `.tex` resume or paste raw LaTeX code.
+- **Privacy-First Workflow:** Uses your own active sessions for AI providers—no API keys required.
+- **Auto-Compilation (Coming Soon):** Renders the AI-tailored LaTeX back into a beautiful PDF instantly.
 
-## React Compiler
+## Local Development Setup
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+To run this extension locally for development or testing:
 
-## Expanding the Oxlint configuration
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/aman879/ResTrail.git
+   cd ResTrail
+   ```
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+2. **Install dependencies:**
+   *(Note: This project uses `pnpm`. Do not use `npm` or `yarn`.)*
+   ```bash
+   pnpm install
+   ```
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+3. **Build the extension:**
+   ```bash
+   pnpm build
+   ```
+   *This will compile the TypeScript and React code into a `dist/` folder.*
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+4. **Load into Chrome:**
+   - Open Chrome and navigate to `chrome://extensions/`
+   - Enable **Developer mode** in the top right corner.
+   - Click **Load unpacked** in the top left.
+   - Select the newly generated `dist/` folder from the `ResTrail` directory.
+
+## Contributing
+
+We welcome contributions! Please follow these steps to contribute:
+
+1. Fork the repository.
+2. Create a new branch for your feature or bug fix (`git checkout -b feature/amazing-feature`).
+3. Make your changes.
+4. Run `pnpm lint` and `pnpm build` to ensure everything is compiling correctly.
+5. Commit your changes (`git commit -m 'feat: added amazing feature'`).
+6. Push to your branch (`git push origin feature/amazing-feature`).
+7. Open a Pull Request!
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
