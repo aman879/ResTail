@@ -2,13 +2,25 @@ import type { AIProvider } from './provider';
 import { AIProviderError } from './errors';
 import { setNativeValue, sleep } from './domUtils';
 
+/**
+ * Implementation of the AIProvider interface for ChatGPT.
+ * Manages interaction with the ChatGPT web interface, including input injection and response extraction.
+ * 
+ * @todo This provider is currently experimental/WIP and may not be fully functional in production.
+ */
 export class ChatGPTProvider implements AIProvider {
   id = 'chatgpt' as const;
 
+  /**
+   * Checks if the given URL matches the ChatGPT provider domain.
+   */
   matchesUrl(url: string): boolean {
     return url.includes('chatgpt.com') || url.includes('chat.openai.com');
   }
 
+  /**
+   * Verifies if the ChatGPT interface is ready by checking for the prompt textarea.
+   */
   async isReady(): Promise<boolean> {
     const input = document.querySelector('#prompt-textarea') || document.querySelector('[contenteditable="true"]');
     if (!input) {
@@ -17,6 +29,9 @@ export class ChatGPTProvider implements AIProvider {
     return true;
   }
 
+  /**
+   * Attempts to locate the submit button within the ChatGPT DOM.
+   */
   private findSendButton(): HTMLButtonElement | null {
     const selectors = [
       'button[data-testid*="send-button"]',
@@ -36,14 +51,15 @@ export class ChatGPTProvider implements AIProvider {
     return null;
   }
 
+  /**
+   * Orchestrates the injection of the prompt into the ChatGPT interface and submits it.
+   */
   async sendPrompt(prompt: string): Promise<string> {
-    // 1. Find Input
     const input = document.querySelector('#prompt-textarea') || document.querySelector('[contenteditable="true"]');
     if (!input) {
       throw new AIProviderError('INPUT_NOT_FOUND', 'Chat input not found.');
     }
 
-    // 2. Focus and Insert Prompt via Clipboard Paste simulation
     (input as HTMLElement).focus();
     await sleep(200);
 
@@ -56,7 +72,6 @@ export class ChatGPTProvider implements AIProvider {
         cancelable: true
       });
       input.dispatchEvent(pasteEvent);
-      console.log('[ResTail] Dispatched paste event for ChatGPT.');
     } catch (err) {
       console.error('[ResTail] ChatGPT paste simulation error:', err);
     }
@@ -66,9 +81,8 @@ export class ChatGPTProvider implements AIProvider {
     setNativeValue(input as HTMLElement, prompt);
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
-    await sleep(800); // Wait for React state to process
+    await sleep(800);
 
-    // 3. Find and click enabled send button
     let sendBtn: HTMLButtonElement | null = null;
     for (let attempt = 0; attempt < 15; attempt++) {
       sendBtn = this.findSendButton();
@@ -77,7 +91,6 @@ export class ChatGPTProvider implements AIProvider {
     }
 
     if (!sendBtn) {
-      console.warn('[ResTail] Enabled send button not found. Attempting Enter key submit.');
       input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
       await sleep(1000);
       
@@ -89,14 +102,11 @@ export class ChatGPTProvider implements AIProvider {
       sendBtn.click();
     }
 
-    // Notify popup that the AI is generating
     chrome.runtime.sendMessage({ type: 'STATUS_UPDATE', status: 'ai_generating' }).catch(() => {});
 
-    // 4. Wait for generation to start
     await sleep(2000);
 
-    // 5. Wait for generation to complete (polling Stop button)
-    let timeout = 120000; // 2 minutes max wait
+    let timeout = 120000;
     const interval = 1000;
     while (timeout > 0) {
       const stopBtn = document.querySelector('button[aria-label="Stop generating"]') || 
@@ -117,10 +127,8 @@ export class ChatGPTProvider implements AIProvider {
       throw new AIProviderError('GENERATION_TIMEOUT', 'Timed out waiting for response.');
     }
 
-    // Notify popup that response is ready for extraction
     chrome.runtime.sendMessage({ type: 'STATUS_UPDATE', status: 'extracting_response' }).catch(() => {});
 
-    // 6. Extract Response
     const messages = document.querySelectorAll('div[data-message-author-role="assistant"]');
     if (!messages || messages.length === 0) {
       throw new AIProviderError('RESPONSE_NOT_FOUND', 'Could not find the assistant response.');
@@ -128,7 +136,6 @@ export class ChatGPTProvider implements AIProvider {
     
     const lastMessage = messages[messages.length - 1] as HTMLElement;
     
-    // Attempt to isolate and concatenate all LaTeX code blocks
     let text = '';
     const preBlocks = lastMessage.querySelectorAll('pre');
     if (preBlocks && preBlocks.length > 0) {
@@ -137,9 +144,6 @@ export class ChatGPTProvider implements AIProvider {
         joinedText += (block.textContent || '') + '\n';
       });
       text = joinedText.trim();
-      if (text) {
-        console.log(`[ResTail] Extracted and joined ${preBlocks.length} code blocks from ChatGPT.`);
-      }
     }
 
     if (!text) {
@@ -150,9 +154,6 @@ export class ChatGPTProvider implements AIProvider {
           joinedText += (block.textContent || '') + '\n';
         });
         text = joinedText.trim();
-        if (text) {
-          console.log(`[ResTail] Extracted and joined ${codeBlocks.length} inline/block code elements from ChatGPT.`);
-        }
       }
     }
 

@@ -2,13 +2,25 @@ import type { AIProvider } from './provider';
 import { AIProviderError } from './errors';
 import { setNativeValue, sleep } from './domUtils';
 
+/**
+ * Implementation of the AIProvider interface for Anthropic's Claude.
+ * Manages interaction with the Claude web interface, including input injection and response extraction.
+ * 
+ * @todo This provider is currently experimental/WIP and is not yet fully functional in production.
+ */
 export class ClaudeProvider implements AIProvider {
   id = 'claude' as const;
 
+  /**
+   * Checks if the given URL matches the Claude provider domain.
+   */
   matchesUrl(url: string): boolean {
     return url.includes('claude.ai');
   }
 
+  /**
+   * Verifies if the Claude interface is ready by checking for the contenteditable input.
+   */
   async isReady(): Promise<boolean> {
     const input = document.querySelector('div[contenteditable="true"]');
     if (!input) {
@@ -17,18 +29,18 @@ export class ClaudeProvider implements AIProvider {
     return true;
   }
 
+  /**
+   * Orchestrates the injection of the prompt into the Claude interface and submits it.
+   */
   async sendPrompt(prompt: string): Promise<string> {
-    // 1. Find Input
     const input = document.querySelector('div[contenteditable="true"]');
     if (!input) {
       throw new AIProviderError('INPUT_NOT_FOUND', 'Claude chat input not found.');
     }
 
-    // 2. Insert Prompt
     setNativeValue(input as HTMLElement, prompt);
     await sleep(500);
 
-    // 3. Submit
     // Claude send button often has an aria-label like "Send Message"
     let sendBtn = document.querySelector('button[aria-label*="Send"]');
     if (!sendBtn || (sendBtn as HTMLButtonElement).disabled) {
@@ -47,10 +59,8 @@ export class ClaudeProvider implements AIProvider {
     }
     (sendBtn as HTMLButtonElement).click();
 
-    // 4. Wait for generation to start
     await sleep(3000);
 
-    // 5. Wait for generation to complete
     let timeout = 120000;
     const interval = 1000;
     while (timeout > 0) {
@@ -73,7 +83,6 @@ export class ClaudeProvider implements AIProvider {
       throw new AIProviderError('GENERATION_TIMEOUT', 'Timed out waiting for Claude response.');
     }
 
-    // 6. Extract Response
     const messages = document.querySelectorAll('.font-claude-message');
     if (!messages || messages.length === 0) {
       throw new AIProviderError('RESPONSE_NOT_FOUND', 'Could not find the Claude response.');

@@ -20,6 +20,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   return false;
 });
 
+/**
+ * Orchestrates the AI tailoring process by opening the provider in a new window,
+ * injecting the prompt, and handling the LaTeX compilation to PDF.
+ *
+ * @param provider - The name of the AI provider (e.g., 'Gemini', 'ChatGPT', 'Claude')
+ * @param prompt - The formatted prompt containing instructions, JD, and Resume
+ * @param resumeName - The original name of the resume file for saving the generated PDF
+ */
 async function handleTailoring(provider: string, prompt: string, resumeName: string) {
   const url = PROVIDER_URLS[provider];
   const scriptFile = PROVIDER_SCRIPTS[provider];
@@ -35,7 +43,6 @@ async function handleTailoring(provider: string, prompt: string, resumeName: str
   try {
     chrome.runtime.sendMessage({ type: 'STATUS_UPDATE', status: 'opening_tab' }).catch(() => {});
 
-    // 1. Open a new window and focus it so Gemini's security allows execCommand and clicks
     const win = await chrome.windows.create({
       url,
       type: 'normal',
@@ -50,16 +57,13 @@ async function handleTailoring(provider: string, prompt: string, resumeName: str
       throw new Error('Failed to open AI automation window.');
     }
 
-    // 2. Wait for the tab to load
     chrome.runtime.sendMessage({ type: 'STATUS_UPDATE', status: 'loading_page' }).catch(() => {});
     await waitForTabLoad(tabId);
     await sleep(3000);
 
-    // 3. Wait for content script to be ready (already injected via manifest.json)
     chrome.runtime.sendMessage({ type: 'STATUS_UPDATE', status: 'injecting_script' }).catch(() => {});
     await sleep(500);
 
-    // 4. Send prompt to the script (retrying if the script takes a moment to bind)
     chrome.runtime.sendMessage({ type: 'STATUS_UPDATE', status: 'sending_prompt' }).catch(() => {});
     const response = await sendMessageWithRetries(tabId, { type: 'SEND_PROMPT', prompt }, 5);
 
@@ -71,20 +75,12 @@ async function handleTailoring(provider: string, prompt: string, resumeName: str
       throw new Error('No response returned from the AI.');
     }
 
-    console.log('====== RAW AI RESPONSE ======');
-    console.log(response.text);
-    console.log('=============================');
-    
     const extracted = extractLatex(response.text);
-    console.log('====== EXTRACTED LATEX ======');
-    console.log(extracted);
-    console.log('=============================');
     
     if (!validateLatex(extracted)) {
       throw new Error('The AI response did not contain valid LaTeX code.');
     }
 
-    // 5. Compile LaTeX to PDF
     chrome.runtime.sendMessage({ type: 'STATUS_UPDATE', status: 'compiling_pdf' }).catch(() => {});
     const pdfResponse = await fetch('https://latex.ytotech.com/builds/sync', {
       method: 'POST',
@@ -108,13 +104,11 @@ async function handleTailoring(provider: string, prompt: string, resumeName: str
     }
     const base64 = btoa(binary);
 
-    // 6. Save PDF to storage
     await chrome.storage.local.set({
       tempPdfBase64: base64,
       tempResumeName: resumeName
     });
 
-    // 7. Close the automation window FIRST
     if (winId) {
       try {
         await chrome.windows.remove(winId);
@@ -123,7 +117,6 @@ async function handleTailoring(provider: string, prompt: string, resumeName: str
       }
     }
 
-    // 8. Open preview.html tab in the user's active window
     await chrome.tabs.create({
       url: chrome.runtime.getURL('preview.html')
     });
@@ -137,6 +130,13 @@ async function handleTailoring(provider: string, prompt: string, resumeName: str
   }
 }
 
+/**
+ * Waits for a specific tab to finish loading.
+ * Includes a safety timeout of 30 seconds to prevent hanging.
+ *
+ * @param tabId - The ID of the tab to monitor
+ * @returns A promise that resolves when the tab load is complete or the timeout is reached
+ */
 function waitForTabLoad(tabId: number): Promise<void> {
   return new Promise((resolve) => {
     const listener = (updatedTabId: number, info: any) => {
@@ -155,6 +155,15 @@ function waitForTabLoad(tabId: number): Promise<void> {
   });
 }
 
+/**
+ * Sends a message to a content script with retry logic.
+ * Useful for ensuring the content script is ready to receive messages immediately after page load.
+ *
+ * @param tabId - The ID of the tab to send the message to
+ * @param message - The payload to send
+ * @param retries - Number of retry attempts
+ * @returns A promise resolving to the response from the content script
+ */
 async function sendMessageWithRetries(tabId: number, message: any, retries: number): Promise<any> {
   for (let i = 0; i < retries; i++) {
     try {
@@ -174,8 +183,11 @@ async function sendMessageWithRetries(tabId: number, message: any, retries: numb
   }
 }
 
-
-
+/**
+ * Utility function to sleep for a specified number of milliseconds.
+ *
+ * @param ms - Milliseconds to sleep
+ */
 function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }

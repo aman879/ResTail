@@ -52,8 +52,6 @@ export function ResumeInput({ initialLatex = '', onLatexLoaded, onError }: Resum
       const content = await parseLatexFile(file);
       setUploadedFile(file);
       onLatexLoaded(content);
-      console.log('--- UPLOADED RESUME (.tex) ---');
-      console.log(content.substring(0, 100) + '...');
     } catch (err: any) {
       onError(err.message || 'Error reading file.');
     }
