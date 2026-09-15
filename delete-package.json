@@ -1,11 +1,11 @@
 {
-  "name": "restail",
+  "name": "delete-ai-chat",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node scripts/dev.js --watch",
-    "build": "tsc -b && node scripts/dev.js",
+    "dev": "concurrently \"vite build --watch\" \"vite build --config vite.content.config.ts --watch\"",
+    "build": "tsc -b && vite build && vite build --config vite.content.config.ts",
     "lint": "oxlint",
     "preview": "vite preview"
   },

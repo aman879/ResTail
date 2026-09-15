@@ -29,20 +29,22 @@ async function handleTailoring(provider: string, prompt: string, resumeName: str
     return;
   }
 
+  let tabId: number | undefined;
   let winId: number | undefined;
 
   try {
     chrome.runtime.sendMessage({ type: 'STATUS_UPDATE', status: 'opening_tab' }).catch(() => {});
 
-    // 1. Open a new window as minimized and unfocused (keeps the popup open!)
+    // 1. Open a new window and focus it so Gemini's security allows execCommand and clicks
     const win = await chrome.windows.create({
       url,
-      type: 'popup',
-      state: 'minimized',
-      focused: false
+      type: 'normal',
+      focused: true,
+      width: 800,
+      height: 600
     });
 
-    const tabId = win?.tabs?.[0]?.id;
+    tabId = win?.tabs?.[0]?.id;
     winId = win?.id;
     if (!tabId || !winId) {
       throw new Error('Failed to open AI automation window.');
@@ -53,13 +55,8 @@ async function handleTailoring(provider: string, prompt: string, resumeName: str
     await waitForTabLoad(tabId);
     await sleep(3000);
 
-    // 3. Inject the content script
+    // 3. Wait for content script to be ready (already injected via manifest.json)
     chrome.runtime.sendMessage({ type: 'STATUS_UPDATE', status: 'injecting_script' }).catch(() => {});
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      files: [scriptFile]
-    });
-
     await sleep(500);
 
     // 4. Send prompt to the script (retrying if the script takes a moment to bind)
@@ -111,12 +108,22 @@ async function handleTailoring(provider: string, prompt: string, resumeName: str
     }
     const base64 = btoa(binary);
 
-    // 6. Save PDF to storage & open preview.html tab
+    // 6. Save PDF to storage
     await chrome.storage.local.set({
       tempPdfBase64: base64,
       tempResumeName: resumeName
     });
 
+    // 7. Close the automation window FIRST
+    if (winId) {
+      try {
+        await chrome.windows.remove(winId);
+      } catch (e) {
+        // Ignore if already closed
+      }
+    }
+
+    // 8. Open preview.html tab in the user's active window
     await chrome.tabs.create({
       url: chrome.runtime.getURL('preview.html')
     });
@@ -127,11 +134,6 @@ async function handleTailoring(provider: string, prompt: string, resumeName: str
   } catch (err: any) {
     console.error('[ResTail] Orchestration failed:', err);
     chrome.runtime.sendMessage({ type: 'TAILORING_FAILED', error: err.message || 'An error occurred.' }).catch(() => {});
-  } finally {
-    // 7. Close the popup window
-    if (winId) {
-      chrome.windows.remove(winId).catch(() => {});
-    }
   }
 }
 

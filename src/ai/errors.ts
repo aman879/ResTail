@@ -5,7 +5,8 @@ export type AIProviderErrorCode =
   | 'SUBMIT_FAILED'
   | 'GENERATION_TIMEOUT'
   | 'RESPONSE_NOT_FOUND'
-  | 'INVALID_RESPONSE';
+  | 'INVALID_RESPONSE'
+  | 'GENERATION_STOPPED';
 
 export class AIProviderError extends Error {
   code: AIProviderErrorCode;

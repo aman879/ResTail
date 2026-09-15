@@ -17,7 +17,7 @@ export class GeminiProvider implements AIProvider {
       'div[contenteditable="true"]',
       '[contenteditable="true"]',
     ];
-    
+
     for (const sel of lightSelectors) {
       const el = document.querySelector(sel) as HTMLElement;
       if (el && el.getAttribute('contenteditable') === 'true') {
@@ -29,20 +29,20 @@ export class GeminiProvider implements AIProvider {
     const richTextarea = document.querySelector('rich-textarea');
     if (richTextarea) {
       if (richTextarea.shadowRoot) {
-        const el = richTextarea.shadowRoot.querySelector('.ql-editor') || 
-                   richTextarea.shadowRoot.querySelector('[contenteditable="true"]');
+        const el = richTextarea.shadowRoot.querySelector('.ql-editor') ||
+          richTextarea.shadowRoot.querySelector('[contenteditable="true"]');
         if (el) return el as HTMLElement;
       }
-      
+
       // Fallback: check if the rich-textarea has the class or contenteditable itself
       const innerEditor = richTextarea.querySelector('.ql-editor') as HTMLElement;
       if (innerEditor) return innerEditor;
-      
+
       if (richTextarea.getAttribute('contenteditable') === 'true') {
         return richTextarea as HTMLElement;
       }
     }
-    
+
     return null;
   }
 
@@ -67,7 +67,7 @@ export class GeminiProvider implements AIProvider {
       '.send-button',
       'button[data-tooltip*="Send"]',
     ];
-    
+
     // 1. Search light DOM
     for (const sel of sendBtnSelectors) {
       const btn = document.querySelector(sel) as HTMLButtonElement;
@@ -85,31 +85,205 @@ export class GeminiProvider implements AIProvider {
 
     return null;
   }
-
-  private findStopButton(): HTMLElement | null {
-    const stopBtnSelectors = [
+  /**
+   * Find the stop button (visible only while Gemini is generating).
+   */
+  private isStopButtonVisible(): boolean {
+    const selectors = [
       'button[aria-label*="Stop"]',
       'button[aria-label*="stop"]',
       'mat-icon[fonticon="stop_circle"]',
-      '.stop-button'
     ];
-    
-    // 1. Search light DOM
-    for (const sel of stopBtnSelectors) {
-      const btn = document.querySelector(sel) as HTMLElement;
-      if (btn) return btn;
+    for (const sel of selectors) {
+      if (document.querySelector(sel)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Check if action buttons (Copy/Share) appear on the LAST response, indicating completion.
+   */
+  private hasCompletionIndicators(): boolean {
+    const indicators = [
+      'button[aria-label*="Copy"]',
+      'button[aria-label*="copy"]',
+      'button[aria-label*="Good response"]',
+      'button[aria-label*="Bad response"]',
+    ];
+    const responseContainers = document.querySelectorAll('message-content, .model-response-text, .response-container, [data-message-author-role="model"]');
+    if (responseContainers.length === 0) return false;
+
+    // Look only at the LAST response
+    const last = responseContainers[responseContainers.length - 1] as HTMLElement;
+    const searchRoot = last.closest('.conversation-turn, .chat-turn, [class*="turn"]') || last.parentElement || last;
+
+    for (const sel of indicators) {
+      if (searchRoot && searchRoot.querySelector(sel)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Wait for Gemini to finish generating.
+   * Phase 1: Wait for Stop button to appear (generation starting).
+   * Phase 2: Wait for Stop button to disappear (generation finished).
+   * Phase 3: Wait for Action buttons or Redo button (UI settled).
+   */
+  private async waitForGenerationComplete(timeoutMs = 120_000): Promise<void> {
+    const startTime = Date.now();
+    const elapsed = () => Date.now() - startTime;
+
+    console.log('[ResTail] Waiting for generation to complete...');
+
+    // Phase 1: Wait for Stop button to appear (max 15s)
+    let stopAppeared = false;
+    for (let i = 0; i < 30; i++) {
+      if (this.isStopButtonVisible()) {
+        stopAppeared = true;
+        console.log(`[ResTail-State] Stop button appeared at ${elapsed()}ms.`);
+        break;
+      }
+      await sleep(500);
     }
 
-    // 2. Search inside rich-textarea shadow DOM
-    const richTextarea = document.querySelector('rich-textarea');
-    if (richTextarea && richTextarea.shadowRoot) {
-      for (const sel of stopBtnSelectors) {
-        const btn = richTextarea.shadowRoot.querySelector(sel) as HTMLElement;
+    if (!stopAppeared) {
+      console.warn(`[ResTail] Stop button never appeared after 15s. Checking for completion indicators anyway...`);
+    }
+
+    // Phase 2 & 3: Wait for stop to disappear AND completion indicators to appear
+    let currentWaitSec = 10;
+    while (elapsed() < timeoutMs) {
+      const isGenerating = this.isStopButtonVisible();
+      const hasActionButtons = this.hasCompletionIndicators();
+      const hasRedo = this.findRegenerateButton() !== null;
+
+      console.log(`[ResTail-State] elapsed=${elapsed()}ms | stopVisible=${isGenerating} | actionBtns=${hasActionButtons} | redoBtn=${hasRedo}`);
+
+      if (isGenerating) {
+        console.log(`[ResTail] Stop button is visible. Still generating... Waiting ${currentWaitSec}s`);
+        await sleep(currentWaitSec * 1000);
+        currentWaitSec = Math.max(2, currentWaitSec - 1);
+        continue;
+      }
+
+      // Stop button is gone. Check if UI has settled.
+      if (hasActionButtons || hasRedo) {
+        console.log(`[ResTail] Stop button gone and completion indicators found. Double checking...`);
+        await sleep(1000);
+
+        if (!this.isStopButtonVisible()) {
+          console.log(`[ResTail] Generation confirmed complete at ${elapsed()}ms.`);
+          return;
+        }
+      } else {
+        console.log(`[ResTail] Stop button is gone, but no completion indicators yet. Waiting for UI to settle...`);
+      }
+
+      await sleep(1000);
+    }
+
+    console.warn(`[ResTail] Timeout (${timeoutMs}ms) waiting for generation to finish.`);
+  }
+
+  /**
+   * Find the Redo button that Gemini shows after a stopped/failed response.
+   */
+  private findRegenerateButton(): HTMLElement | null {
+    const selectors = [
+      'button[aria-label="Redo"]',
+      'button[aria-label*="Regenerate"]',
+      'button[aria-label*="regenerate"]',
+      'button[aria-label*="Retry"]',
+      'button[aria-label*="retry"]',
+      'button[aria-label*="Try again"]',
+      'gem-icon-button button[aria-label="Redo"]',
+      'button:has(mat-icon[data-mat-icon-name="refresh"])',
+      'mat-icon[data-mat-icon-name="refresh"]',
+    ];
+
+    // 1. Try to find the Redo button ONLY in the latest response block
+    const responseContainers = document.querySelectorAll('message-content, .model-response-text, .response-container, [data-message-author-role="model"]');
+    if (responseContainers.length > 0) {
+      const last = responseContainers[responseContainers.length - 1] as HTMLElement;
+      const searchRoot = last.closest('.conversation-turn, .chat-turn, [class*="turn"]') || last.parentElement || last;
+
+      for (const sel of selectors) {
+        const btn = searchRoot.querySelector(sel) as HTMLElement;
         if (btn) return btn;
       }
     }
 
     return null;
+  }
+
+  /**
+   * Wait for the Redo button to appear and click it.
+   */
+  private async clickRedoButton(): Promise<boolean> {
+    console.log('[ResTail] Looking for Redo button...');
+    for (let i = 0; i < 20; i++) {
+      const btn = this.findRegenerateButton();
+      if (btn) {
+        console.log('[ResTail] Clicking Redo button.');
+        btn.click();
+        return true;
+      }
+      await sleep(500);
+    }
+    console.warn('[ResTail] Redo button not found after 10s.');
+    return false;
+  }
+
+  /**
+   * Extract the response text from Gemini's DOM.
+   */
+  private extractResponseText(): string {
+    const responseSelectors = [
+      'message-content',
+      '.model-response-text',
+      '.response-container',
+      '[data-message-author-role="model"]',
+    ];
+
+    for (const sel of responseSelectors) {
+      const messages = document.querySelectorAll(sel);
+      if (messages && messages.length > 0) {
+        const lastMessage = messages[messages.length - 1] as HTMLElement;
+
+        // Try code blocks first (most reliable for LaTeX)
+        const preBlocks = lastMessage.querySelectorAll('pre');
+        if (preBlocks && preBlocks.length > 0) {
+          let joinedText = '';
+          preBlocks.forEach((block) => {
+            joinedText += (block.textContent || '') + '\n';
+          });
+          const text = joinedText.trim();
+          if (text) {
+            console.log(`[ResTail] Found ${preBlocks.length} code blocks.`);
+            return text;
+          }
+        }
+
+        const codeBlocks = lastMessage.querySelectorAll('code');
+        if (codeBlocks && codeBlocks.length > 0) {
+          let joinedText = '';
+          codeBlocks.forEach((block) => {
+            joinedText += (block.textContent || '') + '\n';
+          });
+          const text = joinedText.trim();
+          if (text) {
+            console.log(`[ResTail] Found ${codeBlocks.length} code segments.`);
+            return text;
+          }
+        }
+
+        // Fallback to raw textContent
+        const text = lastMessage.textContent || lastMessage.innerText || '';
+        if (text.trim()) return text;
+      }
+    }
+
+    return '';
   }
 
   async sendPrompt(prompt: string): Promise<string> {
@@ -119,15 +293,12 @@ export class GeminiProvider implements AIProvider {
       throw new AIProviderError('INPUT_NOT_FOUND', 'Gemini chat input not found.');
     }
 
-    // 2. Insert Prompt into contenteditable div
+    // 2. Insert Prompt
     input.focus();
     await sleep(200);
-    
-    // Clear existing content
-    input.innerHTML = '';
+    input.textContent = '';
     await sleep(100);
-    
-    // Simulate a paste event (works perfectly in background/unfocused tabs unlike execCommand)
+
     try {
       const dataTransfer = new DataTransfer();
       dataTransfer.setData('text/plain', prompt);
@@ -137,154 +308,97 @@ export class GeminiProvider implements AIProvider {
         cancelable: true
       });
       input.dispatchEvent(pasteEvent);
-      console.log('[ResTail] Simulated paste event dispatched.');
-    } catch (pasteErr) {
-      console.error('[ResTail] Paste simulation failed:', pasteErr);
-    }
-    
-    // Fallback: execCommand (in case it is focused)
+    } catch (_) { /* fallback below */ }
+
     document.execCommand('insertText', false, prompt);
-    
-    // Fire events to notify Gemini's framework
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
-    
+
     const richTextarea = document.querySelector('rich-textarea');
     if (richTextarea) {
       richTextarea.dispatchEvent(new Event('input', { bubbles: true }));
     }
-    
+
     await sleep(800);
 
-    // 3. Find and click the Send button (supporting Shadow DOM)
+    // 3. Click Send
     let sendBtn: HTMLElement | null = null;
-    
-    // Wait up to 5 seconds for the button to become enabled
-    for (let attempt = 0; attempt < 10; attempt++) {
+    for (let i = 0; i < 10; i++) {
       sendBtn = this.findSendButton();
       if (sendBtn) break;
       await sleep(500);
     }
-    
+
     if (!sendBtn) {
-      // Last resort: try to submit via Enter key
-      console.warn('[ResTail] Send button not found or disabled. Attempting Enter key submit.');
       input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }));
       await sleep(500);
-      const stillHasContent = input.textContent && input.textContent.trim().length > 0;
-      if (stillHasContent) {
+      if (input.textContent && input.textContent.trim().length > 0) {
         throw new AIProviderError('SUBMIT_FAILED', 'Gemini send button not found or disabled.');
       }
     } else {
       sendBtn.click();
+      console.log("clicked send")
     }
+    // 4. Wait + retry loop
+    chrome.runtime.sendMessage({ type: 'STATUS_UPDATE', status: 'ai_generating' }).catch(() => { });
+    const MAX_RETRIES = 3;
 
-    // Notify the popup that the prompt was submitted and the AI is generating
-    chrome.runtime.sendMessage({ type: 'STATUS_UPDATE', status: 'ai_generating' }).catch(() => {});
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      console.log(`[ResTail] Attempt ${attempt}/${MAX_RETRIES}...`);
 
-    const isVisible = (el: HTMLElement) => {
-      return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
-    };
+      // Wait for stop button to appear then disappear
+      await this.waitForGenerationComplete();
 
-    // 4. Wait for generation to start (Stop button to appear and be visible)
-    console.log('[ResTail] Prompt submitted. Waiting up to 10s for generation to start...');
-    let started = false;
-    for (let i = 0; i < 20; i++) {
-      const stopBtn = this.findStopButton();
-      if (stopBtn && isVisible(stopBtn as HTMLElement)) {
-        started = true;
-        console.log('[ResTail] Stop button detected. AI is generating.');
-        break;
-      }
-      await sleep(500);
-    }
-
-    // 5. Wait for generation to complete
-    if (started) {
-      console.log('[ResTail] Monitoring generation status...');
-      let timeout = 120000;
-      const interval = 1000;
-
-      while (timeout > 0) {
-        const stopBtn = this.findStopButton();
-        const isGenerating = stopBtn && isVisible(stopBtn as HTMLElement);
-        console.log(`[ResTail] Generating: ${!!isGenerating}`);
-        
-        if (!isGenerating) {
-          await sleep(2000); // double check
-          const stillStopBtn = this.findStopButton();
-          const stillGenerating = stillStopBtn && isVisible(stillStopBtn as HTMLElement);
-          if (!stillGenerating) {
-            console.log('[ResTail] Generation complete detected.');
-            break;
-          }
-        }
-        
-        await sleep(interval);
-        timeout -= interval;
+      // FAILSAFE: Absolutely do not proceed to extraction if Stop button is still visible
+      while (this.isStopButtonVisible()) {
+        console.warn(`[ResTail-State] Failsafe: Stop button STILL visible. Waiting...`);
+        await sleep(1000);
       }
 
-      if (timeout <= 0) {
-        throw new AIProviderError('GENERATION_TIMEOUT', 'Timed out waiting for Gemini response.');
+      console.log(`[ResTail] Waiting 3.5 seconds for UI to settle before extracting...`);
+      await sleep(3500); // DOM settle buffer
+
+      chrome.runtime.sendMessage({ type: 'STATUS_UPDATE', status: 'extracting_response' }).catch(() => { });
+
+      // Extract response
+      const responseText = this.extractResponseText();
+      const hasContent = responseText.trim().length > 0;
+      const hasRedoBtn = this.findRegenerateButton() !== null;
+      const hasStoppedText = responseText.includes('You stopped this response');
+      const isStopped = hasStoppedText || hasRedoBtn;
+
+      console.log(`[ResTail-State] Extraction | hasContent=${hasContent} | hasRedoBtn=${hasRedoBtn} | hasStoppedText=${hasStoppedText} | isStopped=${isStopped}`);
+
+      if (hasContent && !isStopped) {
+        console.log(`[ResTail] ✓ Got valid completed response on attempt ${attempt}.`);
+        return responseText;
       }
-    } else {
-      console.log('[ResTail] Stop button did not appear within 10s. Checking if response was instant...');
-    }
 
-    // Notify the popup that the response is ready and we are extracting it
-    chrome.runtime.sendMessage({ type: 'STATUS_UPDATE', status: 'extracting_response' }).catch(() => {});
+      // No valid response or it was stopped midway
+      if (isStopped) {
+        console.warn(`[ResTail] ✗ Generation was stopped midway on attempt ${attempt}.`);
+      } else {
+        console.warn(`[ResTail] ✗ No valid response content found on attempt ${attempt}.`);
+      }
 
-    // 6. Extract Response — try multiple selectors
-    const responseSelectors = [
-      'message-content',
-      '.model-response-text',
-      '.response-container',
-      '[data-message-author-role="model"]',
-    ];
-    
-    let responseText = '';
-    for (const sel of responseSelectors) {
-      const messages = document.querySelectorAll(sel);
-      if (messages && messages.length > 0) {
-        const lastMessage = messages[messages.length - 1] as HTMLElement;
-        
-        // 1. Try to isolate and concatenate all LaTeX code blocks directly
-        const preBlocks = lastMessage.querySelectorAll('pre');
-        if (preBlocks && preBlocks.length > 0) {
-          let joinedText = '';
-          preBlocks.forEach((block) => {
-            joinedText += (block.textContent || '') + '\n';
-          });
-          responseText = joinedText.trim();
-          if (responseText) {
-            console.log(`[ResTail] Found and joined ${preBlocks.length} code blocks.`);
-            break;
-          }
-        }
-        
-        const codeBlocks = lastMessage.querySelectorAll('code');
-        if (codeBlocks && codeBlocks.length > 0) {
-          let joinedText = '';
-          codeBlocks.forEach((block) => {
-            joinedText += (block.textContent || '') + '\n';
-          });
-          responseText = joinedText.trim();
-          if (responseText) {
-            console.log(`[ResTail] Found and joined ${codeBlocks.length} inline/block code segments.`);
-            break;
-          }
-        }
-        
-        // 2. Fallback to using the raw textContent (better than innerText for preserving backslashes and spacing)
-        responseText = lastMessage.textContent || lastMessage.innerText || '';
-        if (responseText.trim()) break;
+      if (attempt >= MAX_RETRIES) break;
+
+      // Try clicking Redo
+      const clicked = await this.clickRedoButton();
+      console.log(`[ResTail-State] Redo click result: ${clicked}`);
+
+      if (clicked) {
+        chrome.runtime.sendMessage({ type: 'STATUS_UPDATE', status: 'ai_generating' }).catch(() => { });
+        await sleep(1000);
+        continue;
+      } else {
+        break; // Can't retry without Redo button
       }
     }
-    
-    if (!responseText.trim()) {
-      throw new AIProviderError('RESPONSE_NOT_FOUND', 'Could not find the Gemini response.');
-    }
 
-    return responseText;
+    throw new AIProviderError(
+      'GENERATION_STOPPED',
+      `Gemini failed to generate a response after ${MAX_RETRIES} attempts. Try again or use a different provider.`
+    );
   }
 }
