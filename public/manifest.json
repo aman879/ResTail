@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ResTail",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Tailor your resume for specific job descriptions.",
   "action": {
     "default_popup": "index.html",
@@ -37,12 +37,7 @@
     }
   ],
   "permissions": [
-    "storage",
-    "activeTab",
-    "tabs",
-    "scripting",
-    "downloads",
-    "notifications"
+    "storage"
   ],
   "host_permissions": [
     "*://chatgpt.com/*",
