@@ -39,8 +39,16 @@ async function handleTailoring(provider: string, prompt: string, resumeName: str
 
   let tabId: number | undefined;
   let winId: number | undefined;
+  let userWinId: number | undefined;
 
   try {
+    try {
+      const userWin = await chrome.windows.getLastFocused({ windowTypes: ['normal'] });
+      userWinId = userWin?.id;
+    } catch (e) {
+      // Ignore if unable to fetch last focused window
+    }
+
     chrome.runtime.sendMessage({ type: 'STATUS_UPDATE', status: 'opening_tab' }).catch(() => {});
 
     const win = await chrome.windows.create({
@@ -117,9 +125,25 @@ async function handleTailoring(provider: string, prompt: string, resumeName: str
       }
     }
 
-    await chrome.tabs.create({
-      url: chrome.runtime.getURL('preview.html')
-    });
+    if (userWinId) {
+      try {
+        await chrome.tabs.create({
+          windowId: userWinId,
+          url: chrome.runtime.getURL('preview.html'),
+          active: true
+        });
+        await chrome.windows.update(userWinId, { focused: true });
+      } catch (e) {
+        // Fallback if userWinId is no longer valid
+        await chrome.tabs.create({
+          url: chrome.runtime.getURL('preview.html')
+        });
+      }
+    } else {
+      await chrome.tabs.create({
+        url: chrome.runtime.getURL('preview.html')
+      });
+    }
 
     // Notify the popup that we are done
     chrome.runtime.sendMessage({ type: 'TAILORING_COMPLETE' }).catch(() => {});
