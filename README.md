@@ -19,6 +19,18 @@ Tailor your resume for specific job descriptions using AI directly in your brows
 - **Privacy-First Workflow:** Uses your own active sessions for AI providers—no API keys required.
 - **Inline PDF Previewer:** Renders the AI-tailored LaTeX back into a PDF preview in your browser instantly.
 
+## Installation (Pre-built)
+
+If you prefer not to build the extension from source, you can load the pre-built version directly:
+
+1. Go to the [Releases](https://github.com/aman879/ResTrail/releases) page.
+2. Download the latest `ResTail-dist-vX.X.X.zip` file.
+3. Extract the downloaded zip file to a folder on your computer.
+4. Open Chrome and navigate to `chrome://extensions/`.
+5. Enable **Developer mode** in the top right corner.
+6. Click **Load unpacked** in the top left.
+7. Select the folder you just extracted.
+
 ## Local Development Setup
 
 To run this extension locally for development or testing:

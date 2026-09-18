@@ -36,9 +36,14 @@ jobs:
         cd dist
         zip -r ../ResTail-${{ github.ref_name }}.zip ./*
         cd ..
+        
+    - name: Zip dist folder
+      run: zip -r ResTail-dist-${{ github.ref_name }}.zip dist/
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
-        files: ResTail-${{ github.ref_name }}.zip
+        files: |
+          ResTail-${{ github.ref_name }}.zip
+          ResTail-dist-${{ github.ref_name }}.zip
         generate_release_notes: true
