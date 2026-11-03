@@ -26,9 +26,13 @@ export default function App() {
   // Load persistent input data
   useEffect(() => {
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.get(['latexSource', 'resumeName'], (result) => {
+      chrome.storage.local.get(['latexSource', 'resumeName', 'customInstructions', 'provider'], (result) => {
         if (result.latexSource) setLatexSource(result.latexSource as string);
         if (result.resumeName) setResumeName(result.resumeName as string);
+        if (typeof result.customInstructions === 'string') {
+          setCustomInstructions(result.customInstructions as string);
+        }
+        if (result.provider) setProvider(result.provider as string);
         setIsReady(true);
       });
     } else {
@@ -39,9 +43,9 @@ export default function App() {
   // Save persistent input data
   useEffect(() => {
     if (isReady && typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.set({ latexSource, resumeName });
+      chrome.storage.local.set({ latexSource, resumeName, customInstructions, provider });
     }
-  }, [latexSource, resumeName, isReady]);
+  }, [latexSource, resumeName, customInstructions, provider, isReady]);
 
   // Apply dark mode class to document
   useEffect(() => {
@@ -169,6 +173,10 @@ export default function App() {
         onChange={setCustomInstructions} 
         showInstructions={showInstructions} 
         onToggleShow={() => setShowInstructions(!showInstructions)} 
+        onReset={() => {
+          setCustomInstructions(DEFAULT_EDITABLE_PROMPT);
+          setToastMsg('Custom instructions reset to default.');
+        }}
       />
 
       <OutputFileName 
@@ -186,6 +194,10 @@ export default function App() {
         <div className="text-[10px] text-zinc-500 dark:text-zinc-400 mb-2.5 leading-relaxed text-left w-full px-1">
           <span className="font-semibold text-zinc-800 dark:text-zinc-200 block mb-0.5">Enjoying ResTail?</span>
           If it saved you time or helped you land an interview, consider supporting the project ☕
+          <span className="block mt-1">
+            ResTail is open source. Found a bug or have an idea? Feel free to{' '}
+            <a href="https://github.com/aman879/ResTail" target="_blank" rel="noopener noreferrer" className="font-medium text-zinc-700 dark:text-zinc-300 underline underline-offset-2 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">contribute on GitHub</a>.
+          </span>
         </div>
         <div className="flex items-center justify-center gap-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
           <a href="https://aman879.github.io/ResTail-policies/privacy.html" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">Privacy</a>
@@ -193,6 +205,8 @@ export default function App() {
           <a href="https://aman879.github.io/ResTail-policies/term.html" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">Terms</a>
           <span>.</span>
           <a href="https://aman879.github.io/ResTail-policies/about.html" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">About</a>
+          <span>.</span>
+          <a href="https://github.com/aman879/ResTail" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">GitHub</a>
           <span>.</span>
           <a href="https://ko-fi.com/sch1zo" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors flex items-center gap-0.5 text-rose-500 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300">
             Support ❤️
