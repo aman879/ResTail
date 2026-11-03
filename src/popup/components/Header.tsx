@@ -31,7 +31,7 @@ export function Header({ isDarkMode, onToggleDarkMode, provider, onProviderChang
             onChange={(e) => onProviderChange(e.target.value)}
           >
             <option value="Gemini">Gemini</option>
-            <option value="ChatGPT" disabled>ChatGPT (Coming Soon)</option>
+            <option value="ChatGPT">ChatGPT</option>
             <option value="Claude" disabled>Claude (Coming Soon)</option>
           </select>
           <CaretDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500 dark:text-zinc-400" />
