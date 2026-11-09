@@ -7,6 +7,7 @@ import { JobDescription } from './components/JobDescription';
 import { CustomInstructions } from './components/CustomInstructions';
 import { OutputFileName } from './components/OutputFileName';
 import { SubmitButton } from './components/SubmitButton';
+import { QuickLinks } from './components/QuickLinks';
 
 export default function App() {
   const [provider, setProvider] = useState('Gemini');
@@ -189,6 +190,8 @@ export default function App() {
         onClick={handleTailor}
         statusText={statusText}
       />
+
+      <QuickLinks latex={latexSource} />
 
       <footer className="mt-2 flex flex-col items-center justify-center gap-1 border-t border-zinc-200/50 dark:border-white/5 pt-4 text-center">
         <div className="text-[10px] text-zinc-500 dark:text-zinc-400 mb-2.5 leading-relaxed text-left w-full px-1">
