@@ -1,4 +1,20 @@
 import { extractLatex, validateLatex } from '../resume/latex';
+import { restoreBadge, startAnnouncement } from '../announce/announcement';
+import { needsConversion, normalizeStoredResume, REQUEST_PROTOCOL, resolveOutput, type OutputFormat, type Resume } from '../resume/model';
+import { buildConvertPrompt, buildDocxTailorPrompt, buildTailorPrompt } from '../resume/prompt';
+import { countEdits, parseDocxEdits } from '../resume/docxEdits';
+import type { ResponseKind } from '../resume/response';
+
+interface TailorRequest {
+  provider: string;
+  resume: Resume;
+  /** Whether `resume` is the saved upload (so a PDF conversion can be stored back). */
+  isSavedUpload: boolean;
+  customInstructions: string;
+  jobDescription: string;
+  resumeName: string;
+  outputFormat: OutputFormat;
+}
 
 const PROVIDER_URLS: Record<string, string> = {
   Gemini: 'https://gemini.google.com/',
@@ -12,23 +28,88 @@ const PROVIDER_SCRIPTS: Record<string, string> = {
   Claude: 'assets/content_claude.js'
 };
 
+chrome.runtime.onInstalled.addListener(({ reason, previousVersion }) => {
+  if (reason === chrome.runtime.OnInstalledReason.UPDATE) startAnnouncement(previousVersion).catch(console.error);
+});
+chrome.runtime.onStartup.addListener(() => {
+  restoreBadge().catch(console.error);
+});
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'START_TAILORING') {
-    handleTailoring(message.provider, message.prompt, message.resumeName);
+    if (message.protocol !== REQUEST_PROTOCOL) {
+      chrome.runtime
+        .sendMessage({
+          type: 'TAILORING_FAILED',
+          error: 'ResTail was updated. Reload the extension (chrome://extensions → ↻) and try again.',
+        })
+        .catch(() => {});
+      sendResponse({ started: false });
+      return false;
+    }
+    handleTailoring(message as TailorRequest);
     sendResponse({ started: true });
   }
   return false;
 });
 
+const status = (s: string) => chrome.runtime.sendMessage({ type: 'STATUS_UPDATE', status: s }).catch(() => {});
+
+/** Sends one prompt to the provider tab and returns the raw reply text. */
+async function runPrompt(tabId: number, prompt: string, expect: ResponseKind): Promise<string> {
+  status('sending_prompt');
+  const response = await sendMessageWithRetries(tabId, { type: 'SEND_PROMPT', prompt, expect }, 5);
+  if (response && response.error) throw new Error(response.error);
+  if (!response || !response.text) throw new Error('No response returned from the AI.');
+  return response.text as string;
+}
+
+/** Sends one prompt to the provider tab and returns the LaTeX document from its reply. */
+async function runLatexPrompt(tabId: number, prompt: string): Promise<string> {
+  const latex = extractLatex(await runPrompt(tabId, prompt, 'latex'));
+  if (!validateLatex(latex)) throw new Error('The AI response did not contain valid LaTeX code.');
+  return latex;
+}
+
+async function compileLatex(latex: string): Promise<ArrayBuffer | null> {
+  const res = await fetch('https://latex.ytotech.com/builds/sync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ compiler: 'pdflatex', resources: [{ main: true, content: latex }] }),
+  });
+  return res.ok ? res.arrayBuffer() : null;
+}
+
+/**
+ * Converts a PDF upload to LaTeX once and saves it as the resume's source,
+ * so every later tailoring starts from the same LaTeX and keeps the same layout.
+ */
+async function convertPdfResume(tabId: number, resume: Resume, isSavedUpload: boolean): Promise<Resume> {
+  status('converting_pdf');
+  const latex = await runLatexPrompt(tabId, buildConvertPrompt(resume.pdfExtract ?? ''));
+  if (!(await compileLatex(latex))) {
+    throw new Error('Converting the PDF failed: the generated LaTeX did not compile. Please try again.');
+  }
+
+  const converted: Resume = { ...resume, source: latex, pdfExtract: undefined };
+  if (isSavedUpload) {
+    // Only store it if the user hasn't uploaded a different file in the meantime.
+    const stored = normalizeStoredResume((await chrome.storage.local.get('uploadedResume')).uploadedResume);
+    if (stored && stored.origin === 'pdf' && stored.pdfExtract === resume.pdfExtract) {
+      await chrome.storage.local.set({ uploadedResume: converted });
+      chrome.runtime.sendMessage({ type: 'RESUME_CONVERTED', resume: converted }).catch(() => {});
+    }
+  }
+  return converted;
+}
+
 /**
  * Orchestrates the AI tailoring process by opening the provider in a new window,
- * injecting the prompt, and handling the LaTeX compilation to PDF.
- *
- * @param provider - The name of the AI provider (e.g., 'Gemini', 'ChatGPT', 'Claude')
- * @param prompt - The formatted prompt containing instructions, JD, and Resume
- * @param resumeName - The original name of the resume file for saving the generated PDF
+ * converting a PDF upload to LaTeX first if needed, tailoring, and compiling to PDF.
  */
-async function handleTailoring(provider: string, prompt: string, resumeName: string) {
+async function handleTailoring({ provider, resume, isSavedUpload, customInstructions, jobDescription, resumeName, outputFormat }: TailorRequest) {
+  // Never trust the popup blindly: fall back to an output this input can actually produce.
+  const output = resolveOutput(resume, outputFormat);
   const url = PROVIDER_URLS[provider];
   const scriptFile = PROVIDER_SCRIPTS[provider];
 
@@ -72,38 +153,38 @@ async function handleTailoring(provider: string, prompt: string, resumeName: str
     chrome.runtime.sendMessage({ type: 'STATUS_UPDATE', status: 'injecting_script' }).catch(() => {});
     await sleep(500);
 
-    chrome.runtime.sendMessage({ type: 'STATUS_UPDATE', status: 'sending_prompt' }).catch(() => {});
-    const response = await sendMessageWithRetries(tabId, { type: 'SEND_PROMPT', prompt }, 5);
-
-    if (response && response.error) {
-      throw new Error(response.error);
+    if (resume.format === 'docx') {
+      // Word: the AI only returns paragraph edits; the preview page (which has an XML DOM) applies them.
+      status('tailoring');
+      const reply = await runPrompt(tabId, buildDocxTailorPrompt(resume.docxOutline ?? '', customInstructions, jobDescription), 'docx-edits');
+      if (countEdits(parseDocxEdits(reply)) === 0) {
+        throw new Error('The AI response did not contain any resume changes. Please try again.');
+      }
+      await chrome.storage.local.set({ tempDocx: { original: resume.source, reply, resumeName } });
+      await closeWindowAndOpen(winId, userWinId, 'preview-docx.html');
+      chrome.runtime.sendMessage({ type: 'TAILORING_COMPLETE' }).catch(() => {});
+      return;
     }
 
-    if (!response || !response.text) {
-      throw new Error('No response returned from the AI.');
+    let source = resume;
+    if (needsConversion(resume)) {
+      source = await convertPdfResume(tabId, resume, isSavedUpload);
+      // Tailor in a fresh chat so the conversion doesn't leak into the context.
+      status('loading_page');
+      await chrome.tabs.update(tabId, { url });
+      await waitForTabLoad(tabId);
+      await sleep(3000);
     }
 
-    const extracted = extractLatex(response.text);
-    
-    if (!validateLatex(extracted)) {
-      throw new Error('The AI response did not contain valid LaTeX code.');
-    }
+    status('tailoring');
+    const extracted = await runLatexPrompt(tabId, buildTailorPrompt(source.source, customInstructions, jobDescription, output === 'tex' ? 'tex' : 'pdf'));
 
-    chrome.runtime.sendMessage({ type: 'STATUS_UPDATE', status: 'compiling_pdf' }).catch(() => {});
-    const pdfResponse = await fetch('https://latex.ytotech.com/builds/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        compiler: 'pdflatex',
-        resources: [{ main: true, content: extracted }]
-      })
-    });
-
-    if (!pdfResponse.ok) {
+    status(output === 'tex' ? 'checking_latex' : 'compiling_pdf');
+    const arrayBuffer = await compileLatex(extracted);
+    if (!arrayBuffer) {
       throw new Error('PDF compilation failed. The LaTeX template might be too complex.');
     }
 
-    const arrayBuffer = await pdfResponse.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
     let binary = '';
     const len = uint8Array.byteLength;
@@ -112,38 +193,15 @@ async function handleTailoring(provider: string, prompt: string, resumeName: str
     }
     const base64 = btoa(binary);
 
+    // The PDF is always compiled: it proves the .tex works and powers the preview.
     await chrome.storage.local.set({
       tempPdfBase64: base64,
-      tempResumeName: resumeName
+      tempResumeName: resumeName,
+      tempOutputFormat: output,
+      tempLatex: output === 'tex' ? extracted : null,
     });
 
-    if (winId) {
-      try {
-        await chrome.windows.remove(winId);
-      } catch (e) {
-        // Ignore if already closed
-      }
-    }
-
-    if (userWinId) {
-      try {
-        await chrome.tabs.create({
-          windowId: userWinId,
-          url: chrome.runtime.getURL('preview.html'),
-          active: true
-        });
-        await chrome.windows.update(userWinId, { focused: true });
-      } catch (e) {
-        // Fallback if userWinId is no longer valid
-        await chrome.tabs.create({
-          url: chrome.runtime.getURL('preview.html')
-        });
-      }
-    } else {
-      await chrome.tabs.create({
-        url: chrome.runtime.getURL('preview.html')
-      });
-    }
+    await closeWindowAndOpen(winId, userWinId, 'preview.html');
 
     // Notify the popup that we are done
     chrome.runtime.sendMessage({ type: 'TAILORING_COMPLETE' }).catch(() => {});
@@ -152,6 +210,29 @@ async function handleTailoring(provider: string, prompt: string, resumeName: str
     console.error('[ResTail] Orchestration failed:', err);
     chrome.runtime.sendMessage({ type: 'TAILORING_FAILED', error: err.message || 'An error occurred.' }).catch(() => {});
   }
+}
+
+/** Closes the AI window and opens an extension page in the user's window. */
+async function closeWindowAndOpen(winId: number | undefined, userWinId: number | undefined, page: string) {
+  if (winId) {
+    try {
+      await chrome.windows.remove(winId);
+    } catch {
+      // Ignore if already closed
+    }
+  }
+
+  const url = chrome.runtime.getURL(page);
+  if (userWinId) {
+    try {
+      await chrome.tabs.create({ windowId: userWinId, url, active: true });
+      await chrome.windows.update(userWinId, { focused: true });
+      return;
+    } catch {
+      // Fall through if userWinId is no longer valid
+    }
+  }
+  await chrome.tabs.create({ url });
 }
 
 /**

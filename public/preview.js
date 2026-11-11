@@ -7,16 +7,24 @@
 
   let currentBlob = null;
   let currentResumeName = 'Tailored_Resume';
+  // The PDF is always shown; the download is the format the user picked (.pdf or .tex).
+  let downloadBlob = null;
+  let downloadExt = 'pdf';
 
   // 1. Fetch PDF data from chrome.storage.local
-  chrome.storage.local.get(['tempPdfBase64', 'tempResumeName'], (data) => {
+  chrome.storage.local.get(['tempPdfBase64', 'tempResumeName', 'tempOutputFormat', 'tempLatex'], (data) => {
     if (!data.tempPdfBase64) {
       loader.innerHTML = '<div>Error: No preview data found. Please try tailoring again.</div>';
       return;
     }
 
     currentResumeName = data.tempResumeName || 'Tailored_Resume';
-    titleEl.textContent = `${currentResumeName}.pdf`;
+    if (data.tempOutputFormat === 'tex' && data.tempLatex) {
+      downloadExt = 'tex';
+      downloadBlob = new Blob([data.tempLatex], { type: 'application/x-tex' });
+      btnDownload.lastChild.textContent = ' Download .tex';
+    }
+    titleEl.textContent = `${currentResumeName}.${downloadExt}`;
 
     // Convert base64 back to Blob
     try {
@@ -26,6 +34,7 @@
         bytes[i] = binaryString.charCodeAt(i);
       }
       currentBlob = new Blob([bytes], { type: 'application/pdf' });
+      if (!downloadBlob) downloadBlob = currentBlob;
       const blobUrl = URL.createObjectURL(currentBlob);
 
       // Hide loader and show iframe
@@ -34,7 +43,7 @@
       iframe.style.display = 'block';
 
       // Clear storage to free up memory immediately after loading
-      chrome.storage.local.remove(['tempPdfBase64']);
+      chrome.storage.local.remove(['tempPdfBase64', 'tempLatex', 'tempOutputFormat']);
     } catch (err) {
       console.error('Error generating PDF blob:', err);
       loader.innerHTML = '<div>Failed to load PDF preview.</div>';
@@ -49,11 +58,11 @@
 
   // Download button
   btnDownload.addEventListener('click', () => {
-    if (!currentBlob) return;
-    const url = URL.createObjectURL(currentBlob);
+    if (!downloadBlob) return;
+    const url = URL.createObjectURL(downloadBlob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${currentResumeName}.pdf`;
+    a.download = `${currentResumeName}.${downloadExt}`;
     a.click();
     URL.revokeObjectURL(url);
   });

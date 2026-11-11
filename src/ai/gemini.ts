@@ -1,3 +1,4 @@
+import type { ResponseKind } from '../resume/response';
 import type { AIProvider } from './provider';
 import { AIProviderError } from './errors';
 import { sleep } from './domUtils';
@@ -285,7 +286,8 @@ export class GeminiProvider implements AIProvider {
   /**
    * Orchestrates the injection of the prompt into the chat and triggers the submission.
    */
-  async sendPrompt(prompt: string): Promise<string> {
+  // Generation end is detected from the UI; only ChatGPT also re-checks the reply kind.
+  async sendPrompt(prompt: string, _expect?: ResponseKind): Promise<string> {
     const input = this.findInput();
     if (!input) {
       throw new AIProviderError('INPUT_NOT_FOUND', 'Gemini chat input not found.');

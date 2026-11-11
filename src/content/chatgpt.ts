@@ -15,7 +15,7 @@ chrome.runtime.onMessage.addListener((message: any, _sender: chrome.runtime.Mess
     (async () => {
       try {
         await provider.isReady();
-        const text = await provider.sendPrompt(message.prompt);
+        const text = await provider.sendPrompt(message.prompt, message.expect);
         safeRespond(sendResponse, { text });
       } catch (error: any) {
         console.error('[ResTail] ChatGPT automation failed:', error);

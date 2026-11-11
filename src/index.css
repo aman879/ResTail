@@ -36,3 +36,22 @@ body {
 .dark ::-webkit-scrollbar-thumb:hover {
   background: #3f3f46; /* zinc-700 */
 }
+
+/* Word preview (result page): docx-preview's own wrapper is gray with fixed padding. */
+.docx-host .docx-wrapper {
+  background: transparent;
+  padding: 16px;
+  zoom: var(--page-zoom, 1);
+}
+.docx-host .docx-wrapper > section.docx {
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12), 0 8px 24px rgb(0 0 0 / 0.08);
+  margin-bottom: 16px;
+}
+/* docx-preview gives every section an auto bottom margin, spreading spare page height
+   between continuous sections (e.g. around a two-column block). Only the last one should. */
+.docx-host section.docx > article {
+  margin-bottom: 0;
+}
+.docx-host section.docx > article:last-of-type {
+  margin-bottom: auto;
+}

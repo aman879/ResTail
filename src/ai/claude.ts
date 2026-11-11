@@ -1,3 +1,4 @@
+import type { ResponseKind } from '../resume/response';
 import type { AIProvider } from './provider';
 import { AIProviderError } from './errors';
 import { setNativeValue, sleep } from './domUtils';
@@ -32,7 +33,8 @@ export class ClaudeProvider implements AIProvider {
   /**
    * Orchestrates the injection of the prompt into the Claude interface and submits it.
    */
-  async sendPrompt(prompt: string): Promise<string> {
+  // Generation end is detected from the UI; only ChatGPT also re-checks the reply kind.
+  async sendPrompt(prompt: string, _expect?: ResponseKind): Promise<string> {
     const input = document.querySelector('div[contenteditable="true"]');
     if (!input) {
       throw new AIProviderError('INPUT_NOT_FOUND', 'Claude chat input not found.');

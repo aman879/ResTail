@@ -1,7 +1,7 @@
 import type { AIProvider } from './provider';
 import { AIProviderError } from './errors';
 import { setNativeValue, sleep } from './domUtils';
-import { extractLatex, validateLatex } from '../resume/latex';
+import { isCompleteResponse, type ResponseKind } from '../resume/response';
 
 /**
  * Implementation of the AIProvider interface for ChatGPT (chatgpt.com).
@@ -408,7 +408,7 @@ export class ChatGPTProvider implements AIProvider {
    * Orchestrates the injection of the prompt into ChatGPT and triggers submission.
    * Features automatic retry and generation monitoring matching GeminiProvider.
    */
-  async sendPrompt(prompt: string): Promise<string> {
+  async sendPrompt(prompt: string, expect: ResponseKind = 'latex'): Promise<string> {
     const input = this.findInput();
     if (!input) {
       throw new AIProviderError('INPUT_NOT_FOUND', 'ChatGPT chat input not found.');
@@ -512,7 +512,7 @@ export class ChatGPTProvider implements AIProvider {
       const hasStoppedText = responseText.includes('You stopped this response') || responseText.includes('There was an error generating a response');
       const isStopped = hasStoppedText || (hasRedoBtn && !hasContent);
 
-      const hasLatex = hasContent && validateLatex(extractLatex(responseText));
+      const hasLatex = hasContent && isCompleteResponse(responseText, expect);
 
       if (hasLatex && !hasStoppedText) {
         return responseText;
@@ -525,7 +525,7 @@ export class ChatGPTProvider implements AIProvider {
 
       // No valid response, stopped midway, or reply didn't contain a full LaTeX document
       if (hasContent && !hasStoppedText) {
-        console.warn(`[ResTail] ✗ Response had no complete LaTeX document on attempt ${attempt}. Regenerating...`);
+        console.warn(`[ResTail] ✗ Response had no complete result on attempt ${attempt}. Regenerating...`);
       } else if (isStopped) {
         console.warn(`[ResTail] ✗ Generation was stopped midway or errored on attempt ${attempt}.`);
       } else {
