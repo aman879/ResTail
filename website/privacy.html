@@ -24,38 +24,51 @@
   <div class="page-header">
     <div class="eyebrow">02 / Policy</div>
     <h1>Privacy Policy</h1>
-    <div class="lead-text">Last Updated: August 20, 2026. ResTail is built with a local-first philosophy. We believe your professional history is sensitive and belongs solely in your control.</div>
+    <div class="lead-text">Last Updated: November 11, 2026. ResTail is built with a local-first philosophy. We believe your professional history is sensitive and belongs solely in your control.</div>
   </div>
 
   <main>
     <section class="content-section">
       <h2>Information We Do Not Collect</h2>
-      <p>We run no central analytics dashboards, track no user sessions, and do not maintain database collections. Your original resume text, job descriptions, and custom instructions are never uploaded to any analytics networks.</p>
+      <p>ResTail has no servers of its own, no user accounts, and no analytics or tracking. We never receive your resume, job descriptions, custom instructions, or files. ResTail does not read, store, or transmit your cookies or login credentials for any website.</p>
     </section>
 
     <section class="content-section">
       <h2>Data Handling Pipeline</h2>
       <ul class="data-list">
         <li class="data-item">
-          <div class="item-title">Client-Side Persistence</div>
-          <div class="item-desc">Your inputs are saved strictly within your browser's sandboxed environment via <code>chrome.storage.local</code>. This allows you to close the popup without losing configuration data.</div>
+          <div class="item-title">Stored on Your Device</div>
+          <div class="item-desc">Your inputs are saved only in your browser's sandboxed storage (<code>chrome.storage.local</code>) so you don't lose them when the popup closes. This includes your resume (LaTeX text, your Word file, or the text and layout read from your PDF, plus the LaTeX version created from it), your custom instructions, output file name and format, AI provider, and theme. Job descriptions are not saved. Uploading a new file replaces the old one, and uninstalling the extension deletes everything.</div>
         </li>
         <li class="data-item">
-          <div class="item-title">Orchestration Isolation</div>
-          <div class="item-desc">When request automation triggers, prompt injections run locally inside a temporary window. Your data is sent directly to your logged-in AI provider (e.g. Gemini), governed by your existing workspace agreements.</div>
+          <div class="item-title">Files Read Locally</div>
+          <div class="item-desc">PDF and Word (<code>.docx</code>) files are opened and read entirely inside your browser. ResTail never uploads the files themselves anywhere. Your tailored Word document is also built inside your browser.</div>
         </li>
         <li class="data-item">
-          <div class="item-title">In-Memory Compilation</div>
-          <div class="item-desc">LaTeX compilation calls run via a secure compilation service at <code>https://latex.ytotech.com</code>. The service compiles the PDF in memory, returns the binary stream, and instantly purges all compilation caches.</div>
+          <div class="item-title">Sent to Your AI Provider</div>
+          <div class="item-desc">When you click Tailor Resume, ResTail opens your chosen AI service (Google Gemini, ChatGPT, or Claude) in a temporary window and types a prompt into your own logged-in session. The prompt contains your resume content (LaTeX text, the text of your Word document, or the text and a description of the layout read from your PDF), the job description, and your custom instructions. This is handled under that provider's own privacy policy and terms, and the conversation may appear in your chat history there.</div>
+        </li>
+        <li class="data-item">
+          <div class="item-title">LaTeX Compilation</div>
+          <div class="item-desc">For LaTeX and PDF resumes, the LaTeX returned by the AI (which contains your resume content) is sent to <code>https://latex.ytotech.com</code>, a third-party compilation service, to create the PDF you preview and download. For PDF uploads, the one-time LaTeX conversion is also compiled there to check that it works. ResTail does not operate this service. Word resumes are never sent to it.</div>
+        </li>
+        <li class="data-item">
+          <div class="item-title">Fonts for the Word Preview</div>
+          <div class="item-desc">To show your Word document with fonts that match it, the preview page loads fonts from Google Fonts (<code>fonts.googleapis.com</code>). Like any website loading a web font, this sends Google the requested font names and your IP address. No resume text is sent.</div>
         </li>
       </ul>
     </section>
 
     <section class="content-section">
       <h2>Browser Permissions Required</h2>
-      <p><strong>activeTab / scripting:</strong> Required to locate the input forms inside the AI platform tabs and paste user prompts.</p>
-      <p><strong>storage:</strong> Used to save inputs local to your machine so you do not have to copy and paste your resume every time you open the extension.</p>
-      <p><strong>downloads:</strong> Needed to download the final compiled PDF from the preview tab directly to your system.</p>
+      <p><strong>storage:</strong> Used to save your inputs on your device so you do not have to add your resume every time you open the extension.</p>
+      <p><strong>Access to chatgpt.com, gemini.google.com, and claude.ai:</strong> Required to open your chosen AI service, type the prompt into its chat box, and read the AI's reply. ResTail does not access any other websites.</p>
+      <p>Downloads use your browser's standard save dialog and need no extra permission.</p>
+    </section>
+
+    <section class="content-section">
+      <h2>Changes and Contact</h2>
+      <p>If this policy changes, the "Last Updated" date above will change too. Questions or concerns? Open an issue on <a href="https://github.com/aman879/ResTail/issues">GitHub</a>.</p>
     </section>
   </main>
 

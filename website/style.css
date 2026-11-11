@@ -165,6 +165,19 @@ main {
   font-weight: 500;
 }
 
+.content-section a {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--text-muted);
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.2s ease;
+}
+
+.content-section a:hover,
+.content-section a:focus-visible {
+  text-decoration-color: var(--accent);
+}
+
 /* Uncluttered Bento / Features Grid */
 .features-grid {
   display: grid;
