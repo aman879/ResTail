@@ -7,7 +7,7 @@ chrome.runtime.onMessage.addListener((message: any, _sender: chrome.runtime.Mess
     (async () => {
       try {
         await provider.isReady();
-        const text = await provider.sendPrompt(message.prompt);
+        const text = await provider.sendPrompt(message.prompt, message.expect);
         sendResponse({ text });
       } catch (error: any) {
         sendResponse({ error: error.message || 'Unknown error occurred.' });

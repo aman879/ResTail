@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { DEFAULT_EDITABLE_PROMPT, LOCKED_PROMPT } from '../resume/prompt';
+import { DEFAULT_EDITABLE_PROMPT } from '../resume/prompt';
+import { needsConversion, normalizeStoredResume, outputOptions, REQUEST_PROTOCOL, resolveOutput, resumeText, type OutputFormat, type Resume } from '../resume/model';
 import { Toast } from './components/Toast';
 import { Header } from './components/Header';
-import { ResumeInput } from './components/ResumeInput';
+import { ResumeInput, type InputMode } from './components/ResumeInput';
 import { JobDescription } from './components/JobDescription';
 import { CustomInstructions } from './components/CustomInstructions';
 import { OutputFileName } from './components/OutputFileName';
@@ -15,7 +16,11 @@ export default function App() {
   const [customInstructions, setCustomInstructions] = useState(DEFAULT_EDITABLE_PROMPT);
   const [showInstructions, setShowInstructions] = useState(false);
   const [resumeName, setResumeName] = useState('Tailored_Resume');
-  const [latexSource, setLatexSource] = useState('');
+  /** The user's last choice; the effective format also depends on what the current input supports. */
+  const [preferredOutput, setPreferredOutput] = useState<OutputFormat>('pdf');
+  const [inputMode, setInputMode] = useState<InputMode>('upload');
+  const [uploadedResume, setUploadedResume] = useState<Resume | null>(null);
+  const [pastedLatex, setPastedLatex] = useState('');
   
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -23,17 +28,35 @@ export default function App() {
   const [statusText, setStatusText] = useState('');
   const [isReady, setIsReady] = useState(false);
   const isGeneratingRef = useRef(false);
+  /** Prefix for status text while a multi-step run (PDF conversion, then tailoring) is going. */
+  const phaseRef = useRef('');
 
   // Load persistent input data
   useEffect(() => {
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.get(['latexSource', 'resumeName', 'customInstructions', 'provider'], (result) => {
-        if (result.latexSource) setLatexSource(result.latexSource as string);
+      chrome.storage.local.get(['inputMode', 'uploadedResume', 'pastedLatex', 'latexSource', 'resumeName', 'outputFormat', 'customInstructions', 'provider', 'darkMode'], (result) => {
+        const uploaded = normalizeStoredResume(result.uploadedResume);
+        if (uploaded) setUploadedResume(uploaded);
+        if (typeof result.pastedLatex === 'string') {
+          setPastedLatex(result.pastedLatex);
+        } else if (typeof result.latexSource === 'string') {
+          // Migrate from <= 1.2.0, which stored a single latexSource shown in Paste.
+          setPastedLatex(result.latexSource);
+        }
+        if (result.inputMode === 'upload' || result.inputMode === 'paste') {
+          setInputMode(result.inputMode);
+        } else if (result.latexSource) {
+          setInputMode('paste');
+        }
         if (result.resumeName) setResumeName(result.resumeName as string);
+        if (result.outputFormat === 'pdf' || result.outputFormat === 'tex' || result.outputFormat === 'docx') {
+          setPreferredOutput(result.outputFormat);
+        }
         if (typeof result.customInstructions === 'string') {
           setCustomInstructions(result.customInstructions as string);
         }
         if (result.provider) setProvider(result.provider as string);
+        if (typeof result.darkMode === 'boolean') setIsDarkMode(result.darkMode);
         setIsReady(true);
       });
     } else {
@@ -44,9 +67,20 @@ export default function App() {
   // Save persistent input data
   useEffect(() => {
     if (isReady && typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.set({ latexSource, resumeName, customInstructions, provider });
+      // darkMode is also read by the result pages so they open in the same theme.
+      chrome.storage.local.set({ inputMode, uploadedResume, pastedLatex, resumeName, outputFormat: preferredOutput, customInstructions, provider, darkMode: isDarkMode });
+      chrome.storage.local.remove('latexSource');
     }
-  }, [latexSource, resumeName, customInstructions, provider, isReady]);
+  }, [inputMode, uploadedResume, pastedLatex, resumeName, preferredOutput, customInstructions, provider, isDarkMode, isReady]);
+
+  // The active tab decides the resume; Paste is always LaTeX.
+  const activeResume: Resume | null =
+    inputMode === 'upload'
+      ? uploadedResume
+      : pastedLatex.trim()
+        ? { origin: 'paste', fileName: '', format: 'latex', source: pastedLatex }
+        : null;
+  const outputFormat = resolveOutput(activeResume, preferredOutput);
 
   // Apply dark mode class to document
   useEffect(() => {
@@ -67,16 +101,25 @@ export default function App() {
         loading_page: 'Waiting for page to load...',
         injecting_script: 'Preparing...',
         sending_prompt: 'Sending prompt to AI...',
+        converting_pdf: 'Converting PDF to LaTeX...',
+        tailoring: 'Sending prompt to AI...',
         ai_generating: 'AI is typing...',
         extracting_response: 'Reading AI response...',
         compiling_pdf: 'Compiling PDF...',
+        checking_latex: 'Checking the .tex compiles...',
       };
       return statusMap[status] || 'Working...';
     };
 
     const listener = (message: any) => {
       if (message.type === 'STATUS_UPDATE') {
-        setStatusText(formatStatus(message.status));
+        if (message.status === 'converting_pdf') phaseRef.current = 'Step 1/2 (PDF conversion): ';
+        if (message.status === 'tailoring' && phaseRef.current) phaseRef.current = 'Step 2/2 (tailoring): ';
+        setStatusText(phaseRef.current + formatStatus(message.status));
+      }
+      if (message.type === 'RESUME_CONVERTED' && message.resume) {
+        // Keep the popup in sync so it doesn't overwrite the saved conversion with stale state.
+        setUploadedResume(message.resume as Resume);
       }
       if (message.type === 'TAILORING_COMPLETE') {
         setIsGenerating(false);
@@ -105,7 +148,7 @@ export default function App() {
 
   const handleTailor = async () => {
     if (isGeneratingRef.current) return;
-    if (!latexSource) {
+    if (!activeResume || !resumeText(activeResume).trim()) {
       setToastMsg('Please provide a resume first.');
       return;
     }
@@ -123,17 +166,25 @@ export default function App() {
     setStatusText('Starting...');
     
     try {
-      const fullPrompt = `${LOCKED_PROMPT}\n\nUSER'S CUSTOM PROMPT:\n${customInstructions}\n\nJOB DESCRIPTION:\n${jobDescription}\n\nORIGINAL RESUME:\n${latexSource}`;
-      
-      // Delegate tailoring process to service worker
+      phaseRef.current = '';
+      // Delegate the whole flow (PDF conversion if needed, tailoring, compiling) to the service worker.
       chrome.runtime.sendMessage({
         type: 'START_TAILORING',
+        protocol: REQUEST_PROTOCOL,
         provider,
-        prompt: fullPrompt,
-        resumeName
+        resume: activeResume,
+        isSavedUpload: inputMode === 'upload',
+        customInstructions,
+        jobDescription,
+        resumeName,
+        outputFormat,
       });
 
-      setToastMsg('Tailoring started in a minimized background window.');
+      setToastMsg(
+        needsConversion(activeResume)
+          ? 'Converting your PDF first (one time only), then tailoring.'
+          : 'Tailoring started in a minimized background window.',
+      );
       
     } catch (error: any) {
       setToastMsg(error.message || 'An error occurred.');
@@ -158,8 +209,12 @@ export default function App() {
 
       {isReady && (
         <ResumeInput 
-          initialLatex={latexSource}
-          onLatexLoaded={setLatexSource} 
+          inputMode={inputMode}
+          onInputModeChange={setInputMode}
+          uploaded={uploadedResume}
+          onUploaded={setUploadedResume}
+          pastedLatex={pastedLatex}
+          onPastedLatexChange={setPastedLatex}
           onError={setToastMsg} 
         />
       )}
@@ -181,7 +236,10 @@ export default function App() {
       />
 
       <OutputFileName 
-        resumeName={resumeName} 
+        resumeName={resumeName}
+        outputFormat={outputFormat}
+        outputOptions={outputOptions(activeResume)}
+        onOutputFormatChange={setPreferredOutput}
         onChange={setResumeName} 
       />
 
@@ -191,7 +249,7 @@ export default function App() {
         statusText={statusText}
       />
 
-      <QuickLinks latex={latexSource} />
+      <QuickLinks latex={resumeText(activeResume)} />
 
       <footer className="mt-2 flex flex-col items-center justify-center gap-1 border-t border-zinc-200/50 dark:border-white/5 pt-4 text-center">
         <div className="text-[10px] text-zinc-500 dark:text-zinc-400 mb-2.5 leading-relaxed text-left w-full px-1">

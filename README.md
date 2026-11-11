@@ -16,6 +16,8 @@ Tailor your resume for specific job descriptions using AI directly in your brows
 
 - **Seamless AI Integration:** Works directly with Gemini, ChatGPT (experimental), and Claude (experimental).
 - **LaTeX Support:** Upload your `.tex` resume or paste raw LaTeX code.
+- **Word Support:** Upload a `.docx` resume and get a tailored `.docx` back. Only the text is rewritten inside your original file, so fonts, layout, tables and text boxes stay exactly as they were.
+- **PDF Support:** Upload a `.pdf` resume. Its text and measured layout are extracted locally, and the AI rebuilds it once as a LaTeX resume in a matching layout, which is then reused for every tailoring.
 - **Privacy-First Workflow:** Uses your own active sessions for AI providers—no API keys required.
 - **Inline PDF Previewer:** Renders the AI-tailored LaTeX back into a PDF preview in your browser instantly.
 

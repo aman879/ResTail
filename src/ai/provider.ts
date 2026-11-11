@@ -1,3 +1,5 @@
+import type { ResponseKind } from '../resume/response';
+
 /**
  * Defines the standard interface for all AI provider implementations.
  * Providers are responsible for injecting prompts, monitoring the generation state,
@@ -23,7 +25,8 @@ export interface AIProvider {
    * and extracting the final raw text response from the AI.
    * 
    * @param prompt The complete compiled prompt string
+   * @param expect What a complete reply contains (default: a LaTeX document)
    * @returns The raw string response from the AI
    */
-  sendPrompt(prompt: string): Promise<string>;
+  sendPrompt(prompt: string, expect?: ResponseKind): Promise<string>;
 }
