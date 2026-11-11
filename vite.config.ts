@@ -16,6 +16,7 @@ export default defineConfig({
       input: {
         popup: resolve(import.meta.dirname, 'index.html'),
         'preview-docx': resolve(import.meta.dirname, 'preview-docx.html'),
+        'whats-new': resolve(import.meta.dirname, 'whats-new.html'),
       },
       output: {
         entryFileNames: 'assets/[name].js',

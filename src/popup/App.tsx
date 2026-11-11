@@ -9,6 +9,8 @@ import { CustomInstructions } from './components/CustomInstructions';
 import { OutputFileName } from './components/OutputFileName';
 import { SubmitButton } from './components/SubmitButton';
 import { QuickLinks } from './components/QuickLinks';
+import { NewFeaturesBanner } from './components/NewFeaturesBanner';
+import { clearBadge, dismissBanner, getAnnouncement, openWhatsNew } from '../announce/announcement';
 
 export default function App() {
   const [provider, setProvider] = useState('Gemini');
@@ -27,6 +29,17 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [isReady, setIsReady] = useState(false);
+  const [showNewBanner, setShowNewBanner] = useState(false);
+
+  // Update announcement: opening the popup clears the toolbar badge; the banner stays until dismissed.
+  useEffect(() => {
+    if (typeof chrome === 'undefined' || !chrome.action) return;
+    getAnnouncement().then((a) => {
+      if (!a) return;
+      if (a.badge) clearBadge();
+      setShowNewBanner(a.banner);
+    });
+  }, []);
   const isGeneratingRef = useRef(false);
   /** Prefix for status text while a multi-step run (PDF conversion, then tailoring) is going. */
   const phaseRef = useRef('');
@@ -206,6 +219,16 @@ export default function App() {
         provider={provider} 
         onProviderChange={setProvider} 
       />
+
+      {showNewBanner && (
+        <NewFeaturesBanner
+          onOpenWhatsNew={openWhatsNew}
+          onDismiss={() => {
+            setShowNewBanner(false);
+            dismissBanner();
+          }}
+        />
+      )}
 
       {isReady && (
         <ResumeInput 

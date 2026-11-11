@@ -1,4 +1,5 @@
 import { extractLatex, validateLatex } from '../resume/latex';
+import { restoreBadge, startAnnouncement } from '../announce/announcement';
 import { needsConversion, normalizeStoredResume, REQUEST_PROTOCOL, resolveOutput, type OutputFormat, type Resume } from '../resume/model';
 import { buildConvertPrompt, buildDocxTailorPrompt, buildTailorPrompt } from '../resume/prompt';
 import { countEdits, parseDocxEdits } from '../resume/docxEdits';
@@ -26,6 +27,13 @@ const PROVIDER_SCRIPTS: Record<string, string> = {
   ChatGPT: 'assets/content_chatgpt.js',
   Claude: 'assets/content_claude.js'
 };
+
+chrome.runtime.onInstalled.addListener(({ reason, previousVersion }) => {
+  if (reason === chrome.runtime.OnInstalledReason.UPDATE) startAnnouncement(previousVersion).catch(console.error);
+});
+chrome.runtime.onStartup.addListener(() => {
+  restoreBadge().catch(console.error);
+});
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'START_TAILORING') {
